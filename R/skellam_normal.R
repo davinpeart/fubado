@@ -1,4 +1,4 @@
-# skellam-normal mixture with random intercepts and slopes
+# skellam-normal mixture with random intercepts
 fit_rm_skellam_normal <- function(data, dv, design, id) {
   require(rstan)
   sampling(
@@ -39,7 +39,7 @@ parameters {
     real delta;  // log positive real difference between mean and variance of skellam
 
   // random effects
-    matrix[J, N_I] z_I;  // standardized subject intercepts and slopes
+    matrix[J, N_I] z_I;  // standardized subject intercepts
     vector<lower=0>[J] sigma_I;  // sd for subject intercepts and slopes
     cholesky_factor_corr[J] L_I;  // correlation matrix for subject intercepts and slopes
     vector[N] mu;  // mixture mean
