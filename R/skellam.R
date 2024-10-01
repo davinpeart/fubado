@@ -1,22 +1,22 @@
-skellam_normal <- function(predict_ancillary, repeated_measures, priors) {
+skellam <- function(predict_ancillary, repeated_measures, priors) {
   # functions for printing
   add_fixef <- function(ancillaries, parname, dpar = F) {
     if(parname %in% ancillaries) {
       paste0(
         if(!dpar) {
           "X_full[n, ] * "
-          } else {
-            "vector[K_full] "
-          }, "beta_", parname)
+        } else {
+          "vector[K_full] "
+        }, "beta_", parname)
     } else {
       paste0(
         if(dpar) {
           "real "
-          },
+        },
         parname
       )
-      }
     }
+  }
   add_ranef <- function(logical, index, rep = F) {
     if(logical) {
       paste0(" + z", if(rep) {
@@ -55,7 +55,7 @@ skellam_normal <- function(predict_ancillary, repeated_measures, priors) {
     int<lower=1> K_full;  // number of effects in full design
     matrix[N, K_full] X_full;  // full design matrix"
 },
-    if(repeated_measures) {
+if(repeated_measures) {
   "
   // random effects
     int<lower=1> N_I;  // number of subjects
@@ -70,20 +70,18 @@ skellam_normal <- function(predict_ancillary, repeated_measures, priors) {
     "
 // fixed effects
     vector[K] beta;  // regression coefficients
-     ", add_fixef(predict_ancillary, "phi", T),
-    ";  // log positive real dispersion parameter = standard deviation of normal
      ", add_fixef(predict_ancillary, "delta", T),
     ";  // log positive real difference between mean and variance of skellam
-     ", "vector[N] mu;  // mixture mean",
+     ",
     if(repeated_measures) {
-    "
+      "
 
 // random effects
     matrix[J, N_I] z_I;  // standardized subject intercepts
     vector<lower=0>[J] sigma_I;  // sd for subject intercepts and slopes
     cholesky_factor_corr[J] L_I;  // correlation matrix for subject intercepts and slopes
 "
-      }
+    }
   )
 
   #print transformed parameters
@@ -101,17 +99,13 @@ skellam_normal <- function(predict_ancillary, repeated_measures, priors) {
   priors <- paste0("
 // fixed effects
   beta ~ ", priors[["beta"]], ";
-  ", if("phi" %in% predict_ancillary) {
-  "beta_"
-  },
-  "phi ~ ", priors[["phi"]], ";
   ", if("delta" %in% predict_ancillary) {
     "beta_"
   }, "delta ~ ", priors[["delta"]], ";
   ",
   if(repeated_measures) {
     paste0(
-    "
+      "
 
 // random effects
   L_I ~ ", priors[["cor"]], ";
@@ -119,20 +113,16 @@ skellam_normal <- function(predict_ancillary, repeated_measures, priors) {
   to_vector(z_I) ~ std_normal();  // standard normal on standardized effects
 "
     )
-    }
-)
+  }
+  )
 
   # print likelihood
   likelihood <- paste0("
-  for(n in 1:N) {  // normal hyperprior on means
-      target += normal_lpdf(mu[n] | X[n, ] * beta", add_ranef(repeated_measures, 1),
-                       ", exp(", add_fixef(predict_ancillary, "phi"),
-                       add_ranef(repeated_measures, 2), "));
-    }
-  for(n in 1:N) {  // skellam likelihood on means
-      target += skellam_lpmf(Y[n] | mu[n], abs(mu[n]) + exp(",
+  for(n in 1:N) {  // skellam likelihood
+      target += skellam_lpmf(Y[n] | X[n, ] * beta", add_ranef(repeated_measures, 1),
+                       "abs(X[n, ] * beta", add_ranef(repeated_measures, 1), ") + exp(",
                        add_fixef(predict_ancillary, "delta"),
-                       add_ranef(repeated_measures, 3), "));
+                       add_ranef(repeated_measures, 2), "));
     }
   "
   )
@@ -158,17 +148,12 @@ skellam_normal <- function(predict_ancillary, repeated_measures, priors) {
     }, "
   // replications for posterior predictive checks",
     paste0("
-  array[N] real mu_rep; // mu replications
-  for(n in 1:N) {
-      mu_rep[n] = normal_rng(X[n, ] * beta", add_ranef(repeated_measures, 1, T),
-              ", exp(", add_fixef(predict_ancillary, "phi"),
-              add_ranef(repeated_measures, 2, T), "));
-    }
   array[N] int y_rep; // Y replications
   for(n in 1:N) {
-      y_rep[n] = skellam_rng(mu_rep[n], abs(mu_rep[n]) + exp(",
-              add_fixef(predict_ancillary, "delta"),
-              add_ranef(repeated_measures, 3, T), "));
+      y_rep[n] = skellam_rng(X[n, ] * beta", add_ranef(repeated_measures, 1, T),
+           "abs(X[n, ] * beta", add_ranef(repeated_measures, 1, T), ") + exp(",
+           add_fixef(predict_ancillary, "delta"),
+           add_ranef(repeated_measures, 2, T), "));
     }
   "
     )
@@ -177,4 +162,4 @@ skellam_normal <- function(predict_ancillary, repeated_measures, priors) {
               transformed_parameters = transformed_parameters,
               priors = priors, likelihood = likelihood,
               generated_quantities = generated_quantities, npar = 3))
-  }
+}
